@@ -76,12 +76,12 @@ func pipe(r io.Reader, w io.WriteCloser) {
 }
 
 // pass a stopChan to the go routtine
-func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan struct{}) error {
+func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan struct{}) {
 	remote, err := net.DialTCP("tcp", nil, remoteAddr)
 	if err != nil {
 		log.Println(err)
 		local.Close()
-		return nil
+		return
 	}
 	go pipe(local, remote)
 	go pipe(remote, local)
