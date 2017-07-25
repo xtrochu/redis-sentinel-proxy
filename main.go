@@ -34,7 +34,7 @@ func main() {
 		log.Fatalf("Failed to resolve sentinel address: %s", err)
 	}
 
-	var stopChan chan struct{}
+	stopChan := make(chan struct{})
 	go master(&stopChan)
 
 	listener, err := net.ListenTCP("tcp", laddr)
