@@ -27,11 +27,11 @@ func main() {
 
 	laddr, err := net.ResolveTCPAddr("tcp", *localAddr)
 	if err != nil {
-		log.Fatal("Failed to resolve local address: %s", err)
+		log.Fatalf("Failed to resolve local address: %s", err)
 	}
 	saddr, err = net.ResolveTCPAddr("tcp", *sentinelAddr)
 	if err != nil {
-		log.Fatal("Failed to resolve sentinel address: %s", err)
+		log.Fatalf("Failed to resolve sentinel address: %s", err)
 	}
 
 	var stopChan chan struct{}
