@@ -73,6 +73,7 @@ func master(stopChan *chan struct{}) {
 func pipe(r io.Reader, w io.WriteCloser) {
 	io.Copy(w, r)
 	w.Close()
+	fmt.Println("Closing pipe")
 }
 
 // pass a stopChan to the go routtine
@@ -86,6 +87,7 @@ func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan stru
 	go pipe(local, remote)
 	go pipe(remote, local)
 	<-stopChan // read from stopChan
+	fmt.Println("Closing Proxy")
 	local.Close()
 }
 
