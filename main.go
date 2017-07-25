@@ -61,7 +61,7 @@ func master(stopChan *chan struct{}) {
 			log.Println(err)
 		}
 		if masterAddr.String() != prevMasterAddr.String() {
-			fmt.Println("Master Address changed. Closing stopChan. %s v. %s", masterAddr.String(), prevMasterAddr.String())
+			fmt.Printf("Master Address changed. Closing stopChan. %s v. %s \n", masterAddr.String(), prevMasterAddr.String())
 			close(*stopChan)
 			*stopChan = make(chan struct{})
 		}
@@ -78,6 +78,7 @@ func pipe(r io.Reader, w io.WriteCloser) {
 
 // pass a stopChan to the go routtine
 func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan struct{}) {
+	fmt.Printf("Opening a new connection on remoteAddr, %s\n", remoteAddr)
 	remote, err := net.DialTCP("tcp", nil, remoteAddr)
 	if err != nil {
 		log.Println(err)
