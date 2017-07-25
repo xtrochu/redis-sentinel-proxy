@@ -35,7 +35,7 @@ func main() {
 	}
 
 	var stopChan chan struct{}
-	go master(stopChan)
+	go master(&stopChan)
 
 	listener, err := net.ListenTCP("tcp", laddr)
 	if err != nil {
@@ -52,7 +52,7 @@ func main() {
 	}
 }
 
-func master(stopChan chan struct{}) {
+func master(stopChan *chan struct{}) {
 	var err error
 	for {
 		// has master changed from last time?
@@ -61,8 +61,9 @@ func master(stopChan chan struct{}) {
 			log.Println(err)
 		}
 		if masterAddr != prevMasterAddr {
-			// if so, kill client (`local`) connections?
-			stopChan <- struct{}{}
+			fmt.Println("Master Address changed. Closing stopChan.")
+			close(*stopChan)
+			*stopChan = make(chan struct{})
 		}
 		prevMasterAddr = masterAddr
 		time.Sleep(1 * time.Second)
