@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	masterAddr *net.TCPAddr
-	raddr      *net.TCPAddr
-	saddr      *net.TCPAddr
+	masterAddr     *net.TCPAddr
+	prevMasterAddr *net.TCPAddr
+	raddr          *net.TCPAddr
+	saddr          *net.TCPAddr
 
 	localAddr    = flag.String("listen", ":9999", "local address")
 	sentinelAddr = flag.String("sentinel", ":26379", "remote address")
@@ -33,7 +34,8 @@ func main() {
 		log.Fatal("Failed to resolve sentinel address: %s", err)
 	}
 
-	go master()
+	var stopChan chan struct{}
+	go master(stopChan)
 
 	listener, err := net.ListenTCP("tcp", laddr)
 	if err != nil {
@@ -46,18 +48,23 @@ func main() {
 			log.Println(err)
 			continue
 		}
-
-		go proxy(conn, masterAddr)
+		go proxy(conn, masterAddr, stopChan)
 	}
 }
 
-func master() {
+func master(stopChan chan struct{}) {
 	var err error
 	for {
+		// has master changed from last time?
 		masterAddr, err = getMasterAddr(saddr, *masterName)
 		if err != nil {
 			log.Println(err)
 		}
+		if masterAddr != prevMasterAddr {
+			// if so, kill client (`local`) connections?
+			stopChan <- struct{}{}
+		}
+		prevMasterAddr = masterAddr
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -67,15 +74,18 @@ func pipe(r io.Reader, w io.WriteCloser) {
 	w.Close()
 }
 
-func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr) {
+// pass a stopChan to the go routtine
+func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan struct{}) error {
 	remote, err := net.DialTCP("tcp", nil, remoteAddr)
 	if err != nil {
 		log.Println(err)
 		local.Close()
-		return
+		return nil
 	}
 	go pipe(local, remote)
 	go pipe(remote, local)
+	<-stopChan // read from stopChan
+	local.Close()
 }
 
 func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAddr, error) {
