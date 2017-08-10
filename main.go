@@ -61,7 +61,7 @@ func master(stopChan *chan struct{}) {
 			log.Println(err)
 		}
 		if masterAddr.String() != prevMasterAddr.String() {
-			fmt.Printf("Master Address changed. Closing stopChan. %s v. %s \n", masterAddr.String(), prevMasterAddr.String())
+			fmt.Printf("Master Address changed. Closing stopChan. Setting masterAddr to %s from %s \n", masterAddr.String(), prevMasterAddr.String())
 			close(*stopChan)
 			*stopChan = make(chan struct{})
 		}
