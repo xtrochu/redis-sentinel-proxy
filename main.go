@@ -77,7 +77,7 @@ func pipe(r io.Reader, w io.WriteCloser) {
 }
 
 // pass a stopChan to the go routine
-func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan *chan struct{}) {
+func proxy(local *net.TCPConn, remoteAddr *net.TCPAddr, stopChan *chan struct{}) {
 	fmt.Printf("Opening a new connection on remoteAddr, %s\n", remoteAddr)
 	remote, err := net.DialTCP("tcp", nil, remoteAddr)
 	if err != nil {
