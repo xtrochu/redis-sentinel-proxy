@@ -79,7 +79,7 @@ func pipe(r io.Reader, w io.WriteCloser) {
 // pass a stopChan to the go routtine
 func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan struct{}) {
 	fmt.Printf("Opening a new connection on remoteAddr, %s\n", remoteAddr)
-	remote, err := net.DialTCP("tcp", nil, remoteAddr)
+	remote, err := net.DialTimeout("tcp4", remoteAddr.String(), 50*time.Millisecond)
 	if err != nil {
 		log.Println(err)
 		local.Close()
@@ -93,7 +93,7 @@ func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan chan stru
 }
 
 func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAddr, error) {
-	conn, err := net.DialTCP("tcp", nil, sentinelAddress)
+	conn, err := net.DialTimeout("tcp4", sentinelAddress.String(), 50*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAdd
 	}
 
 	//check that there's actually someone listening on that address
-	conn2, err := net.DialTCP("tcp", nil, addr)
+	conn2, err := net.DialTimeout("tcp", addr.String(), 50*time.Millisecond)
 	if err == nil {
 		defer conn2.Close()
 	}
