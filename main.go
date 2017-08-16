@@ -57,7 +57,7 @@ func master(stopChan *chan string) {
 		// has master changed from last time?
 		masterAddr, err = getMasterAddr(saddr, *masterName)
 		if err != nil {
-			log.Println("[MASTER] Error polling for new master: %s", err)
+			log.Printf("[MASTER] Error polling for new master: %s\n", err)
 		}
 		if err == nil && masterAddr.String() != prevMasterAddr.String() {
 			log.Printf("[MASTER] Master Address changed from %s to %s \n", prevMasterAddr.String(), masterAddr.String())
@@ -71,7 +71,7 @@ func master(stopChan *chan string) {
 
 func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 	bytes, err := io.Copy(w, r)
-	log.Println("[PROXY %s => %s] Shutting down stream; transferred %s bytes: %s", w.RemoteAddr().String(), r.RemoteAddr().String(), bytes, err)
+	log.Printf("[PROXY %s => %s] Shutting down stream; transferred %s bytes: %s\n", w.RemoteAddr().String(), r.RemoteAddr().String(), bytes, err)
 	close(proxyChan)
 }
 
@@ -79,7 +79,7 @@ func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
 	redis, err := net.DialTimeout("tcp4", redisAddr.String(), 50*time.Millisecond)
 	if err != nil {
-		log.Println("[PROXY %s => %s] Can't establish connection: %s", client.RemoteAddr().String(), redisAddr.String(), err)
+		log.Printf("[PROXY %s => %s] Can't establish connection: %s\n", client.RemoteAddr().String(), redisAddr.String(), err)
 		client.Close()
 		return
 	}
