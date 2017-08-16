@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -58,56 +57,55 @@ func master(stopChan chan<- string) {
 		// has master changed from last time?
 		masterAddr, err = getMasterAddr(saddr, *masterName)
 		if err != nil {
-			log.Println(err)
+			log.Println("[MASTER] Error polling for new master: %s", err)
 		}
 		if err == nil && masterAddr.String() != prevMasterAddr.String() {
-			fmt.Printf("Master Address changed. %s v. %s \n", masterAddr.String(), prevMasterAddr.String())
+			log.Printf("[MASTER] Master Address changed from %s to %s \n", prevMasterAddr.String(), masterAddr.String())
 			prevMasterAddr = masterAddr
 			stopChan <- masterAddr.String()
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Second)
 	}
 }
 
-func pipe(r io.Reader, w io.WriteCloser, proxyChan chan<- string) {
-	io.Copy(w, r)
-	fmt.Println("Closing pipe")
+func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
+	bytes, err := io.Copy(w, r)
+	log.Println("[PROXY %s => %s] Shutting down stream; transferred %s bytes: %s", w.RemoteAddr().String(), r.RemoteAddr().String(), bytes, err)
 	close(proxyChan)
 }
 
 // pass a stopChan to the go routtine
-func proxy(local io.ReadWriteCloser, remoteAddr *net.TCPAddr, stopChan <-chan string) {
-	fmt.Printf("Opening a new connection on remoteAddr, %s\n", remoteAddr)
-	remote, err := net.DialTimeout("tcp4", remoteAddr.String(), 50*time.Millisecond)
+func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
+	redis, err := net.DialTimeout("tcp4", redisAddr.String(), 50*time.Millisecond)
 	if err != nil {
-		log.Println(err)
-		local.Close()
+		log.Println("[PROXY %s => %s] Can't establish connection: %s", client.RemoteAddr().String(), redisAddr.String(), err)
+		client.Close()
 		return
 	}
 
-	defer local.Close()
-	defer remote.Close()
+	log.Printf("[PROXY %s => %s] New connection\n", client.RemoteAddr().String(), redisAddr.String())
+	defer client.Close()
+	defer redis.Close()
 
-	localChan := make(chan string)
-	remoteChan := make(chan string)
+	clientChan := make(chan string)
+	redisChan := make(chan string)
 
-	go pipe(local, remote, remoteChan)
-	go pipe(remote, local, localChan)
+	go pipe(client, redis, redisChan)
+	go pipe(redis, client, clientChan)
 
 	select {
 	case <-stopChan:
-	case <-localChan:
-	case <-remoteChan:
-		break
+	case <-clientChan:
+	case <-redisChan:
 	}
 
-	fmt.Println("Closing Proxy")
+	log.Printf("[PROXY %s => %s] Closing connection\n", client.RemoteAddr().String(), redisAddr.String())
 }
 
 func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAddr, error) {
 	conn, err := net.DialTimeout("tcp4", sentinelAddress.String(), 50*time.Millisecond)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Can't connect to Sentinel: %s", err)
 	}
 	defer conn.Close()
 
@@ -122,15 +120,14 @@ func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAdd
 	parts := strings.Split(string(b), "\r\n")
 
 	if len(parts) < 5 {
-		err = errors.New("Couldn't get master address from sentinel")
-		return nil, err
+		return nil, fmt.Errorf("Unexpected response from Sentinel: %s", string(b))
 	}
 
 	//getting the string address for the master node
 	stringaddr := fmt.Sprintf("%s:%s", parts[2], parts[4])
 	addr, err := net.ResolveTCPAddr("tcp", stringaddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Unable to resolve new master %s: %s", stringaddr, err)
 	}
 
 	//check that there's actually someone listening on that address
