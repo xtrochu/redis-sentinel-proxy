@@ -34,7 +34,7 @@ func main() {
 	}
 
 	stopChan := make(chan string)
-	go master(stopChan)
+	go master(&stopChan)
 
 	listener, err := net.ListenTCP("tcp", laddr)
 	if err != nil {
@@ -47,11 +47,11 @@ func main() {
 			log.Println(err)
 			continue
 		}
-		go proxy(conn, masterAddr, stopChan)
+		go proxy(conn, masterAddr, &stopChan)
 	}
 }
 
-func master(stopChan chan<- string) {
+func master(stopChan *chan string) {
 	var err error
 	for {
 		// has master changed from last time?
@@ -62,7 +62,8 @@ func master(stopChan chan<- string) {
 		if err == nil && masterAddr.String() != prevMasterAddr.String() {
 			log.Printf("[MASTER] Master Address changed from %s to %s \n", prevMasterAddr.String(), masterAddr.String())
 			prevMasterAddr = masterAddr
-			stopChan <- masterAddr.String()
+			close(*stopChan)
+			*stopChan = make(chan string)
 		}
 		time.Sleep(500 * time.Second)
 	}
@@ -75,7 +76,7 @@ func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 }
 
 // pass a stopChan to the go routtine
-func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
+func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan *chan string) {
 	redis, err := net.DialTimeout("tcp4", redisAddr.String(), 50*time.Millisecond)
 	if err != nil {
 		log.Println("[PROXY %s => %s] Can't establish connection: %s", client.RemoteAddr().String(), redisAddr.String(), err)
@@ -94,7 +95,7 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 	go pipe(redis, client, clientChan)
 
 	select {
-	case <-stopChan:
+	case <-*stopChan:
 	case <-clientChan:
 	case <-redisChan:
 	}
