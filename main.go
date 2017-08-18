@@ -61,7 +61,15 @@ func master(stopChan *chan string) {
 			}
 		}
 
-		time.Sleep(500 * time.Second)
+		if masterAddr == nil {
+			// if we haven't discovered a master at all, then slow our roll as the cluster is
+			// probably still coming up
+			time.Sleep(1 * time.Second)
+		} else {
+			// if we've seen a master before, then it's time for beast mode
+			time.Sleep(250 * time.Millisecond)
+		}
+
 	}
 }
 
@@ -100,7 +108,7 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 }
 
 func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, error) {
-	conn, err := net.DialTimeout("tcp4", sentinelAddress, 50*time.Millisecond)
+	conn, err := net.DialTimeout("tcp4", sentinelAddress, 100*time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("Can't connect to Sentinel: %s", err)
 	}
