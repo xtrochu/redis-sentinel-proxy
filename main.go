@@ -108,39 +108,59 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 }
 
 func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, error) {
-	conn, err := net.DialTimeout("tcp4", sentinelAddress, 100*time.Millisecond)
+
+	sentinelHost, sentinelPort, err := net.SplitHostPort(sentinelAddress)
 	if err != nil {
-		return nil, fmt.Errorf("Can't connect to Sentinel: %s", err)
+		return nil, fmt.Errorf("Can't find Sentinel: %s", err)
 	}
-	defer conn.Close()
 
-	conn.Write([]byte(fmt.Sprintf("sentinel get-master-addr-by-name %s\n", masterName)))
-
-	b := make([]byte, 256)
-	_, err = conn.Read(b)
+	sentinels, err := net.LookupIP(sentinelHost)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("Can't lookup Sentinel: %s", err)
 	}
 
-	parts := strings.Split(string(b), "\r\n")
+	for _, sentinelIP := range sentinels {
+		conn, err := net.DialTimeout("tcp4", sentinelIP.String()+":"+sentinelPort, 100*time.Millisecond)
+		if err != nil {
+			log.Printf("[MASTER] Unable to connect to Sentinel at %v:%v: %v", sentinelIP, sentinelPort, err)
+			continue
+		}
+		defer conn.Close()
 
-	if len(parts) < 5 {
-		return nil, fmt.Errorf("Unexpected response from Sentinel: %s", string(b))
+		conn.Write([]byte(fmt.Sprintf("sentinel get-master-addr-by-name %s\n", masterName)))
+
+		b := make([]byte, 256)
+		_, err = conn.Read(b)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		parts := strings.Split(string(b), "\r\n")
+
+		if len(parts) < 5 {
+			log.Printf("[MASTER] Unexpected response from Sentinel %v:%v: %s", sentinelIP, sentinelPort, string(b))
+			continue
+		}
+
+		//getting the string address for the master node
+		stringaddr := fmt.Sprintf("%s:%s", parts[2], parts[4])
+		addr, err := net.ResolveTCPAddr("tcp", stringaddr)
+		if err != nil {
+			log.Printf("[MASTER] Unable to resolve new master (from %s:%s) %s: %s", sentinelIP, sentinelPort, stringaddr, err)
+			continue
+		}
+
+		//check that there's actually someone listening on that address
+		conn2, err := net.DialTimeout("tcp", addr.String(), 50*time.Millisecond)
+		if err != nil {
+			log.Printf("[MASTER] Error checking new master (from %s:%s) %s: %s", sentinelIP, sentinelPort, stringaddr, err)
+			continue
+		}
+		defer conn2.Close()
+
+		return addr, err
 	}
 
-	//getting the string address for the master node
-	stringaddr := fmt.Sprintf("%s:%s", parts[2], parts[4])
-	addr, err := net.ResolveTCPAddr("tcp", stringaddr)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to resolve new master %s: %s", stringaddr, err)
-	}
+	return nil, fmt.Errorf("No Sentinels returned a valid master: %v", sentinels)
 
-	//check that there's actually someone listening on that address
-	conn2, err := net.DialTimeout("tcp", addr.String(), 50*time.Millisecond)
-	if err != nil {
-		return nil, err
-	}
-	defer conn2.Close()
-
-	return addr, err
 }
