@@ -11,10 +11,7 @@ import (
 )
 
 var (
-	masterAddr     *net.TCPAddr
-	prevMasterAddr *net.TCPAddr
-	raddr          *net.TCPAddr
-	saddr          *net.TCPAddr
+	masterAddr *net.TCPAddr
 
 	localAddr    = flag.String("listen", ":9999", "local address")
 	sentinelAddr = flag.String("sentinel", ":26379", "remote address")
@@ -27,10 +24,6 @@ func main() {
 	laddr, err := net.ResolveTCPAddr("tcp", *localAddr)
 	if err != nil {
 		log.Fatalf("Failed to resolve local address: %s", err)
-	}
-	saddr, err = net.ResolveTCPAddr("tcp", *sentinelAddr)
-	if err != nil {
-		log.Fatalf("Failed to resolve sentinel address: %s", err)
 	}
 
 	stopChan := make(chan string)
@@ -53,25 +46,28 @@ func main() {
 
 func master(stopChan *chan string) {
 	var err error
+	var possibleMaster *net.TCPAddr
 	for {
 		// has master changed from last time?
-		masterAddr, err = getMasterAddr(saddr, *masterName)
+		possibleMaster, err = getMasterAddr(*sentinelAddr, *masterName)
 		if err != nil {
 			log.Printf("[MASTER] Error polling for new master: %s\n", err)
+		} else {
+			if possibleMaster != nil && possibleMaster.String() != masterAddr.String() {
+				log.Printf("[MASTER] Master Address changed from %s to %s \n", masterAddr.String(), possibleMaster.String())
+				masterAddr = possibleMaster
+				close(*stopChan)
+				*stopChan = make(chan string)
+			}
 		}
-		if err == nil && masterAddr.String() != prevMasterAddr.String() {
-			log.Printf("[MASTER] Master Address changed from %s to %s \n", prevMasterAddr.String(), masterAddr.String())
-			prevMasterAddr = masterAddr
-			close(*stopChan)
-			*stopChan = make(chan string)
-		}
+
 		time.Sleep(500 * time.Second)
 	}
 }
 
 func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 	bytes, err := io.Copy(w, r)
-	log.Printf("[PROXY %s => %s] Shutting down stream; transferred %s bytes: %s\n", w.RemoteAddr().String(), r.RemoteAddr().String(), bytes, err)
+	log.Printf("[PROXY %s => %s] Shutting down stream; transferred %v bytes: %v\n", w.RemoteAddr().String(), r.RemoteAddr().String(), bytes, err)
 	close(proxyChan)
 }
 
@@ -103,8 +99,8 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 	log.Printf("[PROXY %s => %s] Closing connection\n", client.RemoteAddr().String(), redisAddr.String())
 }
 
-func getMasterAddr(sentinelAddress *net.TCPAddr, masterName string) (*net.TCPAddr, error) {
-	conn, err := net.DialTimeout("tcp4", sentinelAddress.String(), 50*time.Millisecond)
+func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, error) {
+	conn, err := net.DialTimeout("tcp4", sentinelAddress, 50*time.Millisecond)
 	if err != nil {
 		return nil, fmt.Errorf("Can't connect to Sentinel: %s", err)
 	}
