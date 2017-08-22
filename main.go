@@ -132,7 +132,7 @@ func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, err
 		b := make([]byte, 256)
 		_, err = conn.Read(b)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("[MASTER] Error reading from Sentinel %v:%v: %s", sentinelIP, sentinelPort, err)
 		}
 
 		parts := strings.Split(string(b), "\r\n")
