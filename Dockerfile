@@ -4,9 +4,17 @@ FROM ${BUILD_FROM_PREFIX}golang:alpine AS build
 ARG BUILD_ARCH
 ARG QEMU_ARCH
 COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
-COPY . /src/redis-sentinel-proxy/
-WORKDIR /src/redis-sentinel-proxy/
-RUN CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
+RUN apk --no-cache add gcc musl-dev git
+WORKDIR /go/src/
+COPY . /go/src/
+ARG BUILD_VERSION
+ARG BUILD_DATE
+ARG BUILD_REF
+ARG BUILD_GOARCH
+ARG BUILD_GOOS
+RUN go mod download \
+ && go mod verify \
+ && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
     -o .
@@ -16,7 +24,7 @@ RUN CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
 
 FROM scratch
 #COPY --from=libs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=build /src/redis-sentinel-proxy/redis-sentinel-proxy /redis-sentinel-proxy
+COPY --from=build /go/src/redis-sentinel-proxy /redis-sentinel-proxy
 ENTRYPOINT ["/redis-sentinel-proxy"]
 
 EXPOSE 6379

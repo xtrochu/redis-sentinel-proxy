@@ -4,8 +4,10 @@ services:
   redis-proxy:
     build: .
     container_name: redis-proxy
+    ports:
+      - 36379:6379
     environment:
-      - LISTEN_ADDRESS=:36379
-      - SENTINAL_ADDRESS=:26379
-      - REDIS_MASTER_NAME=mymaster
+      - LISTEN=:6379
+      - SENTINEL=:26379
+      - MASTER=mymaster
       - PASSWORD=

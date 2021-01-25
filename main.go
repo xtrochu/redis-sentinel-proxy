@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"strings"
 	"time"
+	"github.com/jnovack/flag"
 )
 
 var (

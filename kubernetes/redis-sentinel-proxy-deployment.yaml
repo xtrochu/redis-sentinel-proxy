@@ -18,10 +18,9 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-        args:
-          - "-master"
-          - "primary"
-          - "-sentinel"
-          - "redis-sentinel.$(NAMESPACE):26379"
+          - name: MASTER
+            value: primary
+          - name: SENTINEL
+            value: "redis-sentinel.$(NAMESPACE):26379"
         ports:
         - containerPort: 9999
