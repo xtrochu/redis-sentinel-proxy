@@ -16,6 +16,8 @@ var (
 	localAddr    = flag.String("listen", ":9999", "local address")
 	sentinelAddr = flag.String("sentinel", ":26379", "remote address")
 	masterName   = flag.String("master", "", "name of the master redis node")
+	password     = flag.String("password", "", "password (if any) to authenticate")
+	debug        = flag.Bool("debug", false, "sets debug mode")
 )
 
 func main() {
@@ -49,7 +51,7 @@ func master(stopChan *chan string) {
 	var possibleMaster *net.TCPAddr
 	for {
 		// has master changed from last time?
-		possibleMaster, err = getMasterAddr(*sentinelAddr, *masterName)
+		possibleMaster, err = getMasterAddr(*sentinelAddr, *masterName, *password)
 		if err != nil {
 			log.Printf("[MASTER] Error polling for new master: %s\n", err)
 		} else {
@@ -107,7 +109,7 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 	log.Printf("[PROXY %s => %s] Closing connection\n", client.RemoteAddr().String(), redisAddr.String())
 }
 
-func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, error) {
+func getMasterAddr(sentinelAddress string, masterName string, password string) (*net.TCPAddr, error) {
 
 	sentinelHost, sentinelPort, err := net.SplitHostPort(sentinelAddress)
 	if err != nil {
@@ -127,6 +129,22 @@ func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, err
 		}
 		defer conn.Close()
 
+		if len(password) > 0 {
+			conn.Write([]byte(fmt.Sprintf("AUTH %s\n", password)))
+			if *debug {
+				fmt.Println("> AUTH ", password)
+			}
+			authResp := make([]byte, 256)
+			_, err = conn.Read(authResp)
+		
+			if *debug {
+				fmt.Println("< ", string(authResp))
+			}
+		}
+
+		if *debug {
+			fmt.Println("> sentinel get-master-addr-by-name ", masterName)
+		}
 		conn.Write([]byte(fmt.Sprintf("sentinel get-master-addr-by-name %s\n", masterName)))
 
 		b := make([]byte, 256)
@@ -136,7 +154,10 @@ func getMasterAddr(sentinelAddress string, masterName string) (*net.TCPAddr, err
 		}
 
 		parts := strings.Split(string(b), "\r\n")
-
+		if *debug {
+			fmt.Println("< ", string(b))
+		}
+	
 		if len(parts) < 5 {
 			log.Printf("[MASTER] Unexpected response from Sentinel %v:%v: %s", sentinelIP, sentinelPort, string(b))
 			continue
