@@ -83,7 +83,7 @@ func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 
 // pass a stopChan to the go routtine
 func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
-	redis, err := net.DialTimeout("tcp4", redisAddr.String(), 50*time.Millisecond)
+	redis, err := net.DialTimeout("tcp", redisAddr.String(), 50*time.Millisecond)
 	if err != nil {
 		log.Printf("[PROXY %s => %s] Can't establish connection: %s\n", client.RemoteAddr().String(), redisAddr.String(), err)
 		client.Close()
@@ -122,7 +122,8 @@ func getMasterAddr(sentinelAddress string, masterName string, password string) (
 	}
 
 	for _, sentinelIP := range sentinels {
-		conn, err := net.DialTimeout("tcp4", sentinelIP.String()+":"+sentinelPort, 100*time.Millisecond)
+		sentineladdr := net.JoinHostPort(sentinelIP.String(), senintelPort);
+		conn, err := net.DialTimeout("tcp", sentineladdr, 100*time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Unable to connect to Sentinel at %v:%v: %v", sentinelIP, sentinelPort, err)
 			continue
@@ -164,7 +165,7 @@ func getMasterAddr(sentinelAddress string, masterName string, password string) (
 		}
 
 		//getting the string address for the master node
-		stringaddr := fmt.Sprintf("%s:%s", parts[2], parts[4])
+		stringaddr := net.JoinHostPort(parts[2], parts[4])
 		addr, err := net.ResolveTCPAddr("tcp", stringaddr)
 		if err != nil {
 			log.Printf("[MASTER] Unable to resolve new master (from %s:%s) %s: %s", sentinelIP, sentinelPort, stringaddr, err)
