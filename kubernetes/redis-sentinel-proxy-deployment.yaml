@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: redis-sentinel-proxy
-        image: anubhavmishra/redis-sentinel-proxy:latest
+        image: patrickdk/redis-sentinel-proxy:latest
         env:
           - name: NAMESPACE
             valueFrom:

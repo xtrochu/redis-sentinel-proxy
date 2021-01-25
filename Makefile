@@ -1,4 +1,4 @@
-IMAGE_NAME := anubhavmishra/redis-sentinel-proxy
+IMAGE_NAME := patrickdk/redis-sentinel-proxy
 .PHONY: test
 
 .DEFAULT_GOAL := help

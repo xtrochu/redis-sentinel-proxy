@@ -1,0 +1,11 @@
+version: "2.1"
+
+services:
+  redis-proxy:
+    build: .
+    container_name: redis-proxy
+    environment:
+      - LISTEN_ADDRESS=:36379
+      - SENTINAL_ADDRESS=:26379
+      - REDIS_MASTER_NAME=mymaster
+      - PASSWORD=
