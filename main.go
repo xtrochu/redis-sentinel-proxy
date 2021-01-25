@@ -122,7 +122,7 @@ func getMasterAddr(sentinelAddress string, masterName string, password string) (
 	}
 
 	for _, sentinelIP := range sentinels {
-		sentineladdr := net.JoinHostPort(sentinelIP.String(), senintelPort);
+		sentineladdr := net.JoinHostPort(sentinelIP.String(), sentinelPort);
 		conn, err := net.DialTimeout("tcp", sentineladdr, 100*time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Unable to connect to Sentinel at %v:%v: %v", sentinelIP, sentinelPort, err)
