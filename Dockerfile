@@ -1,6 +1,6 @@
 ARG BUILD_FROM_PREFIX
 
-FROM ${BUILD_FROM_PREFIX}golang:alpine AS build
+FROM ${BUILD_FROM_PREFIX}golang:alpine-12 AS build
 ARG BUILD_ARCH
 ARG QEMU_ARCH
 COPY .gitignore qemu-${QEMU_ARCH}-static* /usr/bin/
@@ -19,7 +19,7 @@ RUN go mod download \
     -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
     -o .
 
-#FROM alpine AS libs
+#FROM alpine-12 AS libs
 #RUN apk --no-cache add ca-certificates
 
 FROM scratch
