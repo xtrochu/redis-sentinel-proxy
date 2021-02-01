@@ -14,7 +14,7 @@ var (
 	masterAddr *net.TCPAddr
 
 	localAddr    = flag.String("listen", ":9999", "local address")
-	sentinelAddr = flag.String("sentinel", ":26379", "remote address")
+	sentinelAddr = flag.String("sentinel", ":26379", "remote address, split with ','")
 	masterName   = flag.String("master", "", "name of the master redis node")
 	password     = flag.String("password", "", "password (if any) to authenticate")
 	debug        = flag.Bool("debug", false, "sets debug mode")
@@ -109,8 +109,10 @@ func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) 
 	log.Printf("[PROXY %s => %s] Closing connection\n", client.RemoteAddr().String(), redisAddr.String())
 }
 
-func getMasterAddr(sentinelAddress string, masterName string, password string) (*net.TCPAddr, error) {
+func getMasterAddr(sentinelAddressList string, masterName string, password string) (*net.TCPAddr, error) {
 
+  sentinelAddress_list := strings.Split(sentinelAddressList,",")
+  for _, sentinelAddress := range sentinelAddress_list {
 	sentinelHost, sentinelPort, err := net.SplitHostPort(sentinelAddress)
 	if err != nil {
 		return nil, fmt.Errorf("Can't find Sentinel: %s", err)
@@ -183,6 +185,6 @@ func getMasterAddr(sentinelAddress string, masterName string, password string) (
 		return addr, err
 	}
 
-	return nil, fmt.Errorf("No Sentinels returned a valid master: %v", sentinels)
-
+  }
+  return nil, fmt.Errorf("No Sentinels returned a valid master.")
 }
