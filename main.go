@@ -83,7 +83,7 @@ func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 
 // pass a stopChan to the go routtine
 func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
-	redis, err := net.DialTimeout("tcp", redisAddr.String(), 50*time.Millisecond)
+	redis, err := net.DialTimeout("tcp", redisAddr.String(), 2000*time.Millisecond)
 	if err != nil {
 		log.Printf("[PROXY %s => %s] Can't establish connection: %s\n", client.RemoteAddr().String(), redisAddr.String(), err)
 		client.Close()
@@ -125,7 +125,7 @@ func getMasterAddr(sentinelAddressList string, masterName string, password strin
 
 	for _, sentinelIP := range sentinels {
 		sentineladdr := net.JoinHostPort(sentinelIP.String(), sentinelPort);
-		conn, err := net.DialTimeout("tcp", sentineladdr, 100*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", sentineladdr, 2000*time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Unable to connect to Sentinel at %v:%v: %v", sentinelIP, sentinelPort, err)
 			continue
@@ -175,7 +175,7 @@ func getMasterAddr(sentinelAddressList string, masterName string, password strin
 		}
 
 		//check that there's actually someone listening on that address
-		conn2, err := net.DialTimeout("tcp", addr.String(), 50*time.Millisecond)
+		conn2, err := net.DialTimeout("tcp", addr.String(), 2000*time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Error checking new master (from %s:%s) %s: %s", sentinelIP, sentinelPort, stringaddr, err)
 			continue
