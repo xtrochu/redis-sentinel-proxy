@@ -5,7 +5,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 	"github.com/jnovack/flag"
 )
@@ -23,6 +26,8 @@ var (
 func main() {
 	flag.Parse()
 
+	setupTermHandler()
+	
 	laddr, err := net.ResolveTCPAddr("tcp", *localAddr)
 	if err != nil {
 		log.Fatalf("Failed to resolve local address: %s", err)
@@ -44,6 +49,16 @@ func main() {
 		}
 		go proxy(conn, masterAddr, stopChan)
 	}
+}
+
+func setupTermHandler() {
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r\n- SigTerm issued")
+		os.Exit(0)
+	}()
 }
 
 func master(stopChan *chan string) {
