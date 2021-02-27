@@ -16,16 +16,20 @@ RUN go mod download \
  && go mod verify \
  && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
     -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
-    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' \
-    -o .
+    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o ./health ./healthcheck \
+ && CGO_ENABLED=0 GOOS=${BUILD_GOOS} GOARCH=${BUILD_GOARCH} go build \
+    -ldflags '-s -w -X main.ver=${BUILD_VERSION} \
+    -X main.commit=${BUILD_REF} -X main.date=${BUILD_DATE}' -o .
 
-#FROM alpine:3.12 AS libs
-#RUN apk --no-cache add ca-certificates
+FROM alpine:3.12 AS libs
+RUN apk --no-cache add ca-certificates
 
 FROM scratch
-#COPY --from=libs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=libs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /go/src/redis-sentinel-proxy /redis-sentinel-proxy
+COPY --from=build /go/src/health /health
 ENTRYPOINT ["/redis-sentinel-proxy"]
+EALTHCHECK --interval=5s --timeout=2s --start-period=15s --retries=3 CMD [ "/health" ]
 
 EXPOSE 6379
 

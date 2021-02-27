@@ -1,1 +1,5 @@
+vendor/*
+dist/*
+docker-compose.override.yml
 redis-sentinel-proxy
+health
