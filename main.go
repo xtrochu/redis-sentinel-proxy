@@ -14,18 +14,25 @@ import (
 )
 
 var (
-	masterAddr *net.TCPAddr
+	masterAddr    *net.TCPAddr
 
-	localAddr    = flag.String("listen", ":9999", "local address")
-	sentinelAddr = flag.String("sentinel", ":26379", "remote address, split with ','")
-	masterName   = flag.String("master", "", "name of the master redis node")
-	password     = flag.String("password", "", "password (if any) to authenticate")
-	debug        = flag.Bool("debug", false, "sets debug mode")
+	localAddr    = flag.String("listen",    ":9999",    "local address")
+	sentinelAddr = flag.String("sentinel",  ":26379",   "remote address, split with ','")
+	masterName   = flag.String("master",    "mymaster", "name of the master redis node")
+	password     = flag.String("password",  "",         "password (if any) to authenticate")
+	debug        = flag.Bool  ("debug",     false,      "sets debug mode")
+	timeout      = flag.Int   ("timeoutms", 2000,       "connect timeout in milliseconds")
+	check        = flag.Int   ("checkms",   250,        "master change check interval in milliseconds")
+	timeoutms      time.Duration
+	checkms        time.Duration
 )
 
 func main() {
 	flag.Parse()
 
+	timeoutms = time.Duration(*timeout)
+	checkms = time.Duration(*check)
+	
 	setupTermHandler()
 	
 	laddr, err := net.ResolveTCPAddr("tcp", *localAddr)
@@ -81,10 +88,10 @@ func master(stopChan *chan string) {
 		if masterAddr == nil {
 			// if we haven't discovered a master at all, then slow our roll as the cluster is
 			// probably still coming up
-			time.Sleep(1 * time.Second)
+			time.Sleep(checkms * 4 * time.Second)
 		} else {
 			// if we've seen a master before, then it's time for beast mode
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(checkms * time.Millisecond)
 		}
 
 	}
@@ -98,7 +105,7 @@ func pipe(r net.Conn, w net.Conn, proxyChan chan<- string) {
 
 // pass a stopChan to the go routtine
 func proxy(client *net.TCPConn, redisAddr *net.TCPAddr, stopChan <-chan string) {
-	redis, err := net.DialTimeout("tcp", redisAddr.String(), 2000*time.Millisecond)
+	redis, err := net.DialTimeout("tcp", redisAddr.String(), timeoutms *time.Millisecond)
 	if err != nil {
 		log.Printf("[PROXY %s => %s] Can't establish connection: %s\n", client.RemoteAddr().String(), redisAddr.String(), err)
 		client.Close()
@@ -140,7 +147,7 @@ func getMasterAddr(sentinelAddressList string, masterName string, password strin
 
 	for _, sentinelIP := range sentinels {
 		sentineladdr := net.JoinHostPort(sentinelIP.String(), sentinelPort);
-		conn, err := net.DialTimeout("tcp", sentineladdr, 2000*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", sentineladdr, timeoutms *time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Unable to connect to Sentinel at %v:%v: %v", sentinelIP, sentinelPort, err)
 			continue
@@ -190,7 +197,7 @@ func getMasterAddr(sentinelAddressList string, masterName string, password strin
 		}
 
 		//check that there's actually someone listening on that address
-		conn2, err := net.DialTimeout("tcp", addr.String(), 2000*time.Millisecond)
+		conn2, err := net.DialTimeout("tcp", addr.String(), timeoutms *time.Millisecond)
 		if err != nil {
 			log.Printf("[MASTER] Error checking new master (from %s:%s) %s: %s", sentinelIP, sentinelPort, stringaddr, err)
 			continue

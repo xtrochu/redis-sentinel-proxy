@@ -9,7 +9,7 @@ import (
 func main() {
 	host := os.Getenv("LISTEN")
 	if len(host) == 0 {
-		host = "localhost:6379"
+		host = "localhost:9999"
 	}
 	pass := os.Getenv("PASSWORD")
 	client := redis.NewClient(&redis.Options{ Addr: host, Password: pass, })
