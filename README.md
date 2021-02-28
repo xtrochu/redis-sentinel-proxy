@@ -7,12 +7,27 @@ Small command utility that:
 
 * Proxies all tcp requests that it receives on `PORT` to that master
 
-
 Usage:
 
 `./redis-sentinel-proxy -listen IP:PORT -sentinel :SENTINEL_PORT -master NAME`
 
 ## Usage
+
+
+### 1. Envioment variables or commandline arguments
+
+Environment Variables     | Description                                       | Required | Default
+------------------------- | ------------------------------------------------- | -------- | -----------------
+LISTEN                    | IP and Port to bind the proxy to                  |          | :9999
+SENTINEL                  | sentinel server and port to connect to, or list   |          | :26379
+MASTER                    | master group name                                 |          | mymaster
+PASSWORD                  | password to authenticate with to sentinel         |          | -
+DEBUG                     | debug output                                      |          | false
+TIMEOUTMS                 | timeout for sentinel and master connections       |          | 2000
+CHECKMS                   | poll time to check sentinel for master changes    |          | 250
+
+
+### 2. Running the proxy
 
 Edit `kubernetes/redis-sentinel-proxy-deployment.yaml`:
 
