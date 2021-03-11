@@ -85,14 +85,8 @@ func master(stopChan *chan string) {
 			}
 		}
 
-		if masterAddr == nil {
-			// if we haven't discovered a master at all, then slow our roll as the cluster is
-			// probably still coming up
-			time.Sleep(checkms * 4 * time.Second)
-		} else {
-			// if we've seen a master before, then it's time for beast mode
-			time.Sleep(checkms * time.Millisecond)
-		}
+		// if we've seen a master before, then it's time for beast mode
+		time.Sleep(checkms * time.Millisecond)
 
 	}
 }
